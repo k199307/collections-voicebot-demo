@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: collections-voicebot-demo
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: unzip -oq project-source.zip -d . && pip install .
+    startCommand: uvicorn collections_bot.api:app --app-dir src --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.18
+      - key: APP_ENV
+        value: demo
+      - key: DEMO_ACCESS_TOKEN
+        generateValue: true
+      - key: MOCK_BANK_ENABLED
+        value: "true"
+      - key: AUTH_MODE
+        value: static
+      - key: COLLECTIONS_API_TOKEN
+        generateValue: true
+      - key: MOCK_BANK_ADMIN_TOKEN
+        generateValue: true
+      - key: COLLECTIONS_DATABASE_URL
+        fromDatabase:
+          name: collections-voicebot-demo-db
+          property: connectionString
+      - key: LLM_PROVIDER
+        value: openai
+      - key: OPENAI_MODEL
+        value: gpt-6-luna
+      - key: OPENAI_REASONING_EFFORT
+        value: none
+      - key: OPENAI_SERVICE_TIER
+        value: fast
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: VOICE_PROVIDER
+        value: sarvam
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: SARVAM_STT_MODEL
+        value: saaras:v4
+      - key: SARVAM_STT_LANGUAGE
+        value: auto
+      - key: SARVAM_STT_MODE
+        value: translate
+      - key: SARVAM_STT_STREAM_TYPE
+        value: balanced
+      - key: SARVAM_TTS_MODEL
+        value: bulbul:v4-flash
+      - key: SARVAM_TTS_SPEAKER
+        value: sunny_enhi_customer
+
+databases:
+  - name: collections-voicebot-demo-db
+    databaseName: collections_voicebot
+    user: collections_voicebot
+    plan: free
+    region: singapore
