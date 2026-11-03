@@ -16,6 +16,10 @@ services:
         generateValue: true
       - key: MOCK_BANK_ENABLED
         value: "true"
+      - key: CALLING_ALLOWED_START_HOUR
+        value: "0"
+      - key: CALLING_ALLOWED_END_HOUR
+        value: "24"
       - key: AUTH_MODE
         value: static
       - key: COLLECTIONS_API_TOKEN
