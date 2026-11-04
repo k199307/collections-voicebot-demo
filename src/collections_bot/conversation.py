@@ -1144,7 +1144,6 @@ def process_turn(
     *,
     heard_before_opening: bool = False,
     stt_confidence: float | None = None,
-    speech_evidence: bool | None = None,
     reference_date: str | None = None,
 ) -> TurnResponse:
     """Conservative rule-based starter. Critical actions are policy-ordered."""
@@ -1155,42 +1154,6 @@ def process_turn(
     text = transcript.casefold().strip()
     original_text = text
     broad_date_window = _broad_date_window(original_text)
-    acoustic_utterance_untrusted = speech_evidence is False
-    # A one-word identity confirmation can be genuine speech even when the
-    # browser's pitch-periodicity gate is uncertain. Require one independent
-    # repeat before accepting it in that case: a single transient/noise
-    # hallucination must not unlock account details, but repeated clear “yes”
-    # answers should not be trapped in the same clarification loop.
-    weak_identity_yes = (
-        session.pending == "identity_confirmation"
-        and _is_clear_yes(original_text)
-    )
-    if session.scratch.get("weak_identity_yes_retry") and not weak_identity_yes:
-        session.scratch.pop("weak_identity_yes_retry", None)
-    if (acoustic_utterance_untrusted and weak_identity_yes
-            and session.scratch.get("weak_identity_yes_retry") is True):
-        acoustic_utterance_untrusted = False
-    if acoustic_utterance_untrusted:
-        session.turn_count += 1
-        session.scratch["suppress_acknowledgment"] = True
-        _trace_policy(
-            session,
-            "Acoustic speech check",
-            "uncertain; clarification required",
-            "The browser detected little voiced-speech evidence in this audio, so its transcript is not used to change identity or payment state.",
-        )
-        if session.pending == "identity_confirmation":
-            session.scratch["awaiting_identity_confirmation"] = True
-            session.scratch["identity_wait_prompt_given"] = True
-            contact_name = " ".join(part.strip() for part in (session.request.first_name, session.request.last_name) if part and part.strip()) or "the account holder"
-            if weak_identity_yes:
-                session.scratch["weak_identity_yes_retry"] = True
-                return _reply(
-                    session,
-                    f"I heard you say yes, but the audio was unclear. For security, please say ‘Yes, I am {contact_name}’ once more.",
-                )
-            return _reply(session, f"I couldn’t make out a clear spoken answer. Are you {contact_name}?")
-        return _reply(session, _low_signal_clarification(session))
     if (
         broad_date_window
         and session.pending is None
@@ -1732,7 +1695,6 @@ def process_turn(
             session.scratch["full_name_clarification_attempts"] = 0
             session.scratch["identity_clarification_attempts"] = 0
             session.scratch["identity_wait_prompt_given"] = False
-            session.scratch.pop("weak_identity_yes_retry", None)
             session.scratch["conversation_stage"] = "payment_resolution"
             session.scratch["due_information_given"] = True
             return _reply(session, f"Thank you for confirming. Your minimum payment on your Mumbai Bank credit card is overdue. Interest is charged at {_monthly_interest_text()}, and a late fee of {_late_fee_text()} may apply if your outstanding balance is over {_threshold_text()}. Have you already paid, or when do you expect to pay the minimum amount due?")
@@ -2251,7 +2213,7 @@ def process_turn(
         account_reference = session.request.masked_account_reference or ""
         last_four = re.search(r"(\d{4})\D*$", account_reference)
         if last_four:
-            reply = (f"I’m referring to the Mumbai Bank card ending in {last_four.group(1)}, which is the account linked to this call. "
+            reply = (f"This call is about your Mumbai Bank credit card ending in {last_four.group(1)}. "
                      "I can’t see your other cards here. Have you already paid this card, would you like to tell me when you can pay, or would you prefer a callback?")
         else:
             reply = ("I can only see the Mumbai Bank account linked to this call, and I don’t have its card reference available here. "
